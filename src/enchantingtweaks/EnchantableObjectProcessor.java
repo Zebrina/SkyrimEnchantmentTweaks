@@ -5,8 +5,8 @@
  */
 package enchantingtweaks;
 
-import data.RecordHandler;
-import data.SoulGems;
+import enchantingtweaks.data.SoulGems;
+import enchantingtweaks.data.RecordHandler;
 import enchantingtweaks.exceptions.RecordCopyFailureException;
 import enchantingtweaks.exceptions.RecordNotFoundException;
 import java.util.HashMap;

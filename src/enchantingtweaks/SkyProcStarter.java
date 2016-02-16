@@ -1,6 +1,6 @@
 package enchantingtweaks;
 
-import data.RecordHandler;
+import enchantingtweaks.data.RecordHandler;
 import java.awt.Color;
 import java.awt.Font;
 import java.net.URL;

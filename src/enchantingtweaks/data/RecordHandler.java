@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package data;
+package enchantingtweaks.data;
 
 import enchantingtweaks.exceptions.RecordNotFoundException;
 import java.util.HashMap;
