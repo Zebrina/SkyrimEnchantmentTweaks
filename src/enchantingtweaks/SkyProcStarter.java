@@ -13,6 +13,7 @@ import skyproc.gui.SPMainMenuPanel;
 import skyproc.gui.SUM;
 import skyproc.gui.SUMGUI;
 import enchantingtweaks.YourSaveFile.Settings;
+import enchantingtweaks.exceptions.RecordNotFoundException;
 import java.util.Arrays;
 
 /**
@@ -33,18 +34,18 @@ public class SkyProcStarter implements SUM {
      */
     GRUP_TYPE[] importRequests = new GRUP_TYPE[]{
 	GRUP_TYPE.ARMO,
-        GRUP_TYPE.COBJ,
 	GRUP_TYPE.ENCH,
         GRUP_TYPE.FLST,
         GRUP_TYPE.KYWD,
 	GRUP_TYPE.MGEF,
 	GRUP_TYPE.WEAP,
     };
-    public static String myPatchName = "EnchantingTweaksPatch";
+    public static String myPatchName = "EnchantingTweaks";
+    public static String myPatchModName = "EnchantingTweaks-EnchantmentRemoval";
     public static String authorName = "Zebrina";
-    public static String version = "0.4";
-    public static String welcomeText = "Pick an setting, any setting.";
-    public static String descriptionToShowInSUM = "Required for enchantment removal.";
+    public static String version = "0.5";
+    public static String welcomeText = "Pick a setting, any setting.";
+    public static String descriptionToShowInSUM = "Required by EnchantingTweaks for enchantment removal.";
     public static Color headerColor = new Color(0x9F81F7);  // Purple
     public static Color settingsColor = new Color(0x9F81F7);  // Purple
     public static Font settingsFont = new Font("Serif", Font.BOLD, 15);
@@ -161,7 +162,7 @@ public class SkyProcStarter implements SUM {
 
     @Override
     public ModListing getListing() {
-	return new ModListing(getName(), false);
+	return new ModListing(myPatchModName, false);
     }
 
     @Override
@@ -231,14 +232,14 @@ public class SkyProcStarter implements SUM {
             throw new Exception();
         }
         for (WEAP weapon : merger.getWeapons()) {
-            if (weapon.get(MajorRecord.MajorFlags.NonPlayable)) {
+            if (weapon.get(MajorRecord.MajorFlags.NonPlayable) || weapon.get(WEAP.WeaponFlag.NonPlayable)) {
                 SPGlobal.log("WEAP", "Ignoring non-playable weapon [" + weapon.getEDID() + "]");
             }
             else if (weapon.getEnchantment() == null || weapon.getEnchantment().isNull()) {
                 SPGlobal.log("WEAP", "Ignoring unenchanted weapon [" + weapon.getEDID() + "]");
             }
             else if (weapon.getWeight() == 0.0) {
-                SPGlobal.log("ARMO", "Ignoring weightless weapon [" + weapon.getEDID() + "]");
+                SPGlobal.log("WEAP", "Ignoring weightless weapon [" + weapon.getEDID() + "]");
             }
             else {
                 weaponProcessor.processRecord(new EnchantableWeapon(weapon), true);
@@ -251,7 +252,7 @@ public class SkyProcStarter implements SUM {
             throw new Exception();
         }
         for (ARMO armor : merger.getArmors()) {
-            if (armor.get(MajorRecord.MajorFlags.NonPlayable)) {
+            if (armor.get(MajorRecord.MajorFlags.NonPlayable) || armor.getBodyTemplate().get(BodyTemplate.GeneralFlags.NonPlayable)) {
                 SPGlobal.log("ARMO", "Ignoring non-playable armor [" + armor.getEDID() + "]");
             }
             else if (armor.getEnchantment() == null || armor.getEnchantment().isNull()) {
@@ -265,8 +266,8 @@ public class SkyProcStarter implements SUM {
             }
         }
         
-        merger.setAuthor(authorName);
-        merger.setDescription(descriptionToShowInSUM);
+        patch.setAuthor(authorName);
+        patch.setDescription(descriptionToShowInSUM);
     }
 
     class EnchantableWeapon implements EnchantableObject {
@@ -297,8 +298,8 @@ public class SkyProcStarter implements SUM {
             weapon.setDescription(description);
         }
         @Override
-        public ArrayList<FormID> getKeywords() {
-            return weapon.getKeywordSet().getKeywordRefs();
+        public KeywordSet getKeywords() {
+            return weapon.getKeywordSet();
         }
         @Override
         public FormID getEnchantment() {
@@ -313,12 +314,13 @@ public class SkyProcStarter implements SUM {
             return weapon.getTemplate();
         }
         @Override
-        public EnchantableObject copy() {
-            WEAP newWeapon = (WEAP)weapon.copy(weapon.getEDID() + "NoEnchant");
+        public EnchantableObject copy() throws RecordNotFoundException {
+            WEAP newWeapon = RecordHandler.inst().getCopyWithPrefix(weapon.getForm(), "NoEnch");
             
             newWeapon.setEnchantment(FormID.NULL);
+            newWeapon.setEnchantmentCharge(0);
             newWeapon.setDescription("");
-            newWeapon.getKeywordSet().getKeywordRefs().remove(RecordHandler.inst().getFormID("MagicDisallowEnchanting"));
+            newWeapon.getKeywordSet().removeKeywordRef(RecordHandler.inst().getFormID("MagicDisallowEnchanting"));
             
             return new EnchantableWeapon(newWeapon);
         }
@@ -353,8 +355,8 @@ public class SkyProcStarter implements SUM {
             armor.setDescription(description);
         }
         @Override
-        public ArrayList<FormID> getKeywords() {
-            return armor.getKeywordSet().getKeywordRefs();
+        public KeywordSet getKeywords() {
+            return armor.getKeywordSet();
         }
         @Override
         public FormID getEnchantment() {
@@ -369,12 +371,12 @@ public class SkyProcStarter implements SUM {
             return armor.getTemplate();
         }
         @Override
-        public EnchantableObject copy() {
-            ARMO newArmor = (ARMO)armor.copy(armor.getEDID() + "NoEnchant");
+        public EnchantableObject copy() throws RecordNotFoundException {
+            ARMO newArmor = RecordHandler.inst().getCopyWithPrefix(armor.getForm(), "NoEnch");
             
             newArmor.setEnchantment(FormID.NULL);
             newArmor.setDescription("");
-            newArmor.getKeywordSet().getKeywordRefs().remove(RecordHandler.inst().getFormID("MagicDisallowEnchanting"));
+            newArmor.getKeywordSet().removeKeywordRef(RecordHandler.inst().getFormID("MagicDisallowEnchanting"));
             
             return new EnchantableArmor(newArmor);
         }

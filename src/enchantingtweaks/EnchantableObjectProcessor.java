@@ -6,10 +6,12 @@
 package enchantingtweaks;
 
 import data.RecordHandler;
+import data.SoulGems;
 import enchantingtweaks.exceptions.RecordCopyFailureException;
 import enchantingtweaks.exceptions.RecordNotFoundException;
 import java.util.HashMap;
 import skyproc.*;
+import skyproc.Condition.P_FormID;
 import skyproc.genenums.CastType;
 import skyproc.genenums.DeliveryType;
 
@@ -38,21 +40,30 @@ public class EnchantableObjectProcessor<T extends EnchantableObject> {
         if (record.getTemplate() == null || record.getTemplate().isNull()) {
             T unenchantedRecord = (T)record.copy();
 
+            /*
             // Remove enchantment.
             unenchantedRecord.setEnchantment(FormID.NULL);
 
-            KYWD uniqueKeyword = RecordHandler.inst().getCopy("Keyword", "Unique", record.getEditorID());//(KYWD)patch.makeCopy(KeywordTemplate, "UniqueEnchantment_" + record.getEditorID());
+            KYWD uniqueKeyword = new KYWD("UniqKW" + record.getEditorID());
 
-            // Add unique keyword.
-            unenchantedRecord.getKeywords().add(uniqueKeyword.getForm());
+            // Add unique keyword to.
+            unenchantedRecord.getKeywords().addKeywordRef(uniqueKeyword.getForm());
 
-            FLST restrictions = RecordHandler.inst().getCopy("FormList", "WornRestrictions", record.getEditorID());
+            FLST restrictions = new FLST("WrnRes" + record.getEditorID());
 
             restrictions.addFormEntry(uniqueKeyword.getForm());
+            */
 
-            COBJ recipe = RecordHandler.inst().getCopy("CraftingRecipe", "RemoveEnchantment", record.getEditorID());
-
-            //recipe.setResultFormID(record.getFormID());
+            COBJ recipe = new COBJ("RmEnch" + record.getEditorID());
+            recipe.addIngredient(SoulGems.SoulGemBlackFilled, 1);
+            Condition c = new Condition(P_FormID.GetItemCount, record.getFormID());
+            c.setOperator(Condition.Operator.GreaterThan);
+            c.setValue(0);
+            recipe.addCondition(c);
+            recipe.setResultFormID(unenchantedRecord.getFormID());
+            recipe.setBenchKeywordFormID(RecordHandler.inst().getFormID("CraftingArcaneFont"));
+            //recipe.setOutputQuantity(1);
+            //patch.addRecord(recipe);
 
             //recipe.getConditions().get(0).setReference(record.getFormID());
             
@@ -110,6 +121,7 @@ public class EnchantableObjectProcessor<T extends EnchantableObject> {
             */
         }
         else {
+            /*
             if (!templateObjects.containsKey(record.getTemplate())) {
                 //COBJ recipe = (COBJ)patch.makeCopy(CraftingRemoveEnchantmentTemplate, "RemoveEnchantment" + edid);
                 //if (recipe == null) {
@@ -118,10 +130,7 @@ public class EnchantableObjectProcessor<T extends EnchantableObject> {
 
                 //recipe.setResultFormID(record.getTemplate());
 
-                FLST requirement = RecordHandler.inst().getCopy("FormList", "Template", RecordHandler.inst().get(record.getTemplate()).getEDID());
-                if (requirement == null) {
-                    throw new RecordCopyFailureException("Failed to copy formlist", RecordHandler.inst().get(record.getTemplate()));
-                }
+                FLST requirement = new FLST("TmpUsers" + RecordHandler.inst().get(record.getTemplate()).getEDID());
 
                 //recipe.getConditions().get(0).setReference(requirement.getForm());
                 //recipe.getConditions().add(new Condition());
@@ -131,6 +140,7 @@ public class EnchantableObjectProcessor<T extends EnchantableObject> {
                 templateObjects.put(record.getTemplate(), requirement);
             }
             templateObjects.get(record.getTemplate()).addFormEntry(record.getFormID());
+*/
         }
     }
 }

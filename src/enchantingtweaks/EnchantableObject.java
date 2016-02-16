@@ -5,8 +5,9 @@
  */
 package enchantingtweaks;
 
-import java.util.ArrayList;
+import enchantingtweaks.exceptions.RecordNotFoundException;
 import skyproc.FormID;
+import skyproc.KeywordSet;
 import skyproc.MajorRecord;
 
 /**
@@ -19,9 +20,9 @@ public interface EnchantableObject {
     public String getEditorID();
     public String getDescription();
     public void setDescription(String description);
-    public ArrayList<FormID> getKeywords();
+    public KeywordSet getKeywords();
     public FormID getEnchantment();
     public void setEnchantment(FormID enchantment);
     public FormID getTemplate();
-    public EnchantableObject copy();
+    public EnchantableObject copy() throws RecordNotFoundException;
 }
