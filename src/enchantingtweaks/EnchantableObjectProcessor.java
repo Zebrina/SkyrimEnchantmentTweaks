@@ -32,10 +32,7 @@ public class EnchantableObjectProcessor<T extends EnchantableObject> {
     }
     
     public void processRecord(T record, boolean isWeapon) throws RecordNotFoundException, RecordCopyFailureException {
-        ENCH enchantment = (ENCH)merger.getMajor(record.getEnchantment(), GRUP_TYPE.ENCH);
-        if (enchantment == null) {
-            throw new RecordNotFoundException("Enchantment not found", record.getEnchantment());
-        }
+        ENCH enchantment = RecordHandler.inst().get(record.getEnchantment());
 
         if (record.getTemplate() == null || record.getTemplate().isNull()) {
             T unenchantedRecord = (T)record.copy();
@@ -59,6 +56,7 @@ public class EnchantableObjectProcessor<T extends EnchantableObject> {
             Condition c = new Condition(P_FormID.GetItemCount, record.getFormID());
             c.setOperator(Condition.Operator.GreaterThan);
             c.setValue(0);
+            c.setRunOnType(Condition.RunOnType.Subject);
             recipe.addCondition(c);
             recipe.setResultFormID(unenchantedRecord.getFormID());
             recipe.setBenchKeywordFormID(RecordHandler.inst().getFormID("CraftingArcaneFont"));

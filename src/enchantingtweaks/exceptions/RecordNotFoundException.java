@@ -13,7 +13,7 @@ import skyproc.MajorRecord;
  * @author Sabrina
  */
 public class RecordNotFoundException extends Exception {
-    private final static String DefaultMessage = "Record not found!";
+    private final static String DEFAULT_MESSAGE = "Record not found!";
     
     public RecordNotFoundException(String message, FormID formID) {
         super(message + " [XX" + formID.getFormStr().substring(0, 6) + " in " + formID.getFormStr().substring(6) + "]");
@@ -22,15 +22,15 @@ public class RecordNotFoundException extends Exception {
         this(message, record.getForm());
     }
     public RecordNotFoundException(FormID formID) {
-        this(DefaultMessage, formID);
+        this(DEFAULT_MESSAGE, formID);
     }
     public RecordNotFoundException(MajorRecord record) {
-        this(DefaultMessage, record);
+        this(DEFAULT_MESSAGE, record);
     }
     public RecordNotFoundException(String message, String editorID) {
         super(message + " [" + editorID + "]");
     }
     public RecordNotFoundException(String editorID) {
-        this(DefaultMessage, editorID);
+        this(DEFAULT_MESSAGE, editorID);
     }
 }

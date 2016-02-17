@@ -5,6 +5,7 @@
  */
 package enchantingtweaks.data;
 
+import enchantingtweaks.exceptions.RecordCopyFailureException;
 import enchantingtweaks.exceptions.RecordNotFoundException;
 import java.util.HashMap;
 import skyproc.FormID;
@@ -85,17 +86,21 @@ public class RecordHandler {
     public <T extends MajorRecord> T getCopyWithSuffix(String editorID, String suffix) throws RecordNotFoundException {
         return getCopy(editorID, "", suffix);
     }
-    public <T extends MajorRecord> T getCopy(FormID formID, String prefix, String suffix) throws RecordNotFoundException {
-        T t = get(formID);
-        return t == null ? null : (T)patch.makeCopy(t, prefix + t.getEDID() + suffix);
+    public <T extends MajorRecord> T getCopy(FormID formID, String prefix, String suffix) throws RecordNotFoundException, RecordCopyFailureException {
+        T orig = get(formID);
+        T copy = (T)patch.makeCopy(orig, prefix + orig.getEDID() + suffix);
+        if (copy == null) {
+            throw new RecordCopyFailureException(orig);
+        }
+        return copy;
     }
-    public <T extends MajorRecord> T getCopy(FormID formID) throws RecordNotFoundException {
+    public <T extends MajorRecord> T getCopy(FormID formID) throws RecordNotFoundException, RecordCopyFailureException {
         return getCopy(formID, "CopyOf", "");
     }
-    public <T extends MajorRecord> T getCopyWithPrefix(FormID formID, String prefix) throws RecordNotFoundException {
+    public <T extends MajorRecord> T getCopyWithPrefix(FormID formID, String prefix) throws RecordNotFoundException, RecordCopyFailureException {
         return getCopy(formID, prefix, "");
     }
-    public <T extends MajorRecord> T getCopyWithSuffix(FormID formID, String suffix) throws RecordNotFoundException {
+    public <T extends MajorRecord> T getCopyWithSuffix(FormID formID, String suffix) throws RecordNotFoundException, RecordCopyFailureException {
         return getCopy(formID, "", suffix);
     }
 }

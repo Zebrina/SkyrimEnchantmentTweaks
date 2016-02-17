@@ -13,10 +13,18 @@ import skyproc.MajorRecord;
  * @author Sabrina
  */
 public class RecordCopyFailureException extends Exception {
-    public RecordCopyFailureException(String message, FormID form) {
-        super(message + " [" + (form.isNull() ? "NULL" : ("XX" + form.getFormStr().substring(0, 6) + " in " + form.getFormStr().substring(6))) + "]");
+    private static final String DEFAULT_MESSAGE = "Failed to copy record!";
+    
+    public RecordCopyFailureException(String message, FormID formID) {
+        super(message + " [" + (formID.isNull() ? "NULL" : ("XX" + formID.getFormStr().substring(0, 6) + " in " + formID.getFormStr().substring(6))) + "]");
     }
     public RecordCopyFailureException(String message, MajorRecord record) {
         this(message, record != null ? record.getForm() : FormID.NULL);
+    }
+    public RecordCopyFailureException(FormID formID) {
+        this(DEFAULT_MESSAGE, formID);
+    }
+    public RecordCopyFailureException(MajorRecord record) {
+        this(DEFAULT_MESSAGE, record);
     }
 }
