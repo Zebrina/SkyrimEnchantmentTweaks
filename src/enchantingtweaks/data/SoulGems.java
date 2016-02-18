@@ -11,7 +11,7 @@ import skyproc.FormID;
  *
  * @author Sabrina
  */
-public class SoulGems {
+public final class SoulGems {
     private static final String SKYRIM_ESM = "Skyrim.esm";
     
     /* Empty */

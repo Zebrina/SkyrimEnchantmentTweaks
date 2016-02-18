@@ -12,7 +12,7 @@ import skyproc.MajorRecord;
  *
  * @author Sabrina
  */
-public class RecordCopyFailureException extends Exception {
+public class RecordCopyFailureException extends RecordException {
     private static final String DEFAULT_MESSAGE = "Failed to copy record!";
     
     public RecordCopyFailureException(String message, FormID formID) {

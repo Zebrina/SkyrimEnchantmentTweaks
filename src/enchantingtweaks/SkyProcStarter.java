@@ -13,8 +13,6 @@ import skyproc.gui.SPMainMenuPanel;
 import skyproc.gui.SUM;
 import skyproc.gui.SUMGUI;
 import enchantingtweaks.YourSaveFile.Settings;
-import enchantingtweaks.exceptions.RecordNotFoundException;
-import java.util.Arrays;
 
 /**
  *
@@ -34,6 +32,7 @@ public class SkyProcStarter implements SUM {
      */
     GRUP_TYPE[] importRequests = new GRUP_TYPE[]{
 	GRUP_TYPE.ARMO,
+        GRUP_TYPE.COBJ,
 	GRUP_TYPE.ENCH,
         GRUP_TYPE.FLST,
         GRUP_TYPE.KYWD,
@@ -56,6 +55,7 @@ public class SkyProcStarter implements SUM {
     // at the bottom
     public static void main(String[] args) {
         // Ugly fix to prevent boss from running
+        /*
         boolean noBoss = false;
         for (String arg : args) {
             if (arg.equalsIgnoreCase("-noboss")) {
@@ -67,6 +67,7 @@ public class SkyProcStarter implements SUM {
             args = Arrays.copyOf(args, args.length + 1);
             args[args.length - 1] = "-noboss";
         }
+        */
         
 	try {
 	    SPGlobal.createGlobalLog();
@@ -169,6 +170,7 @@ public class SkyProcStarter implements SUM {
     public Mod getExportPatch() {
 	Mod out = new Mod(getListing());
 	out.setAuthor(authorName);
+        out.setDescription(descriptionToShowInSUM);
 	return out;
     }
 
@@ -200,9 +202,7 @@ public class SkyProcStarter implements SUM {
     @Override
     public ArrayList<ModListing> requiredMods() {
         ArrayList<ModListing> requiredMods = new ArrayList<>();
-        
         requiredMods.add(new ModListing("EnchantingTweaks.esp"));
-        
 	return requiredMods;
     }
 
@@ -216,169 +216,39 @@ public class SkyProcStarter implements SUM {
     // but DO NOT export it.  Exporting is handled internally.
     @Override
     public void runChangesToPatch() throws Exception {
-
-	Mod patch = SPGlobal.getGlobalPatch();
-
-	Mod merger = new Mod(getName() + "Merger", false);
-	merger.addAsOverrides(SPGlobal.getDB());
-
-	// Write your changes to the patch here.
+        EnchantableObjectProcessor processor = new EnchantableObjectProcessor();
         
-        RecordHandler.inst().initialize(merger, patch);
-        
-        EnchantableObjectProcessor<EnchantableWeapon> weaponProcessor = new EnchantableObjectProcessor<>(merger, patch);
-        if (weaponProcessor == null) {
-            SPGlobal.logError("EnchantableObjectProcessor", "weaponProcessor invalid.");
-            throw new Exception();
-        }
-        for (WEAP weapon : merger.getWeapons()) {
+        for (WEAP weapon : RecordHandler.inst().getDB().getWeapons()) {
             if (weapon.get(MajorRecord.MajorFlags.NonPlayable) || weapon.get(WEAP.WeaponFlag.NonPlayable)) {
                 SPGlobal.log("WEAP", "Ignoring non-playable weapon [" + weapon.getEDID() + "]");
             }
-            else if (weapon.getEnchantment() == null || weapon.getEnchantment().isNull()) {
+            else if (weapon.getEnchantment().isNull()) {
                 SPGlobal.log("WEAP", "Ignoring unenchanted weapon [" + weapon.getEDID() + "]");
             }
-            else if (weapon.getWeight() == 0.0) {
-                SPGlobal.log("WEAP", "Ignoring weightless weapon [" + weapon.getEDID() + "]");
-            }
             else {
-                weaponProcessor.processRecord(new EnchantableWeapon(weapon), true);
+                processor.processRecord(new EnchantableWeapon(weapon));
             }
         }
-        
-        EnchantableObjectProcessor<EnchantableArmor> armorProcessor = new EnchantableObjectProcessor<>(merger, patch);
-        if (armorProcessor == null) {
-            SPGlobal.logError("EnchantableObjectProcessor", "armorProcessor invalid.");
-            throw new Exception();
-        }
-        for (ARMO armor : merger.getArmors()) {
+
+        for (ARMO armor : RecordHandler.inst().getDB().getArmors()) {
             if (armor.get(MajorRecord.MajorFlags.NonPlayable) || armor.getBodyTemplate().get(BodyTemplate.GeneralFlags.NonPlayable)) {
                 SPGlobal.log("ARMO", "Ignoring non-playable armor [" + armor.getEDID() + "]");
             }
-            else if (armor.getEnchantment() == null || armor.getEnchantment().isNull()) {
+            else if (armor.getEnchantment().isNull()) {
                 SPGlobal.log("ARMO", "Ignoring unenchanted armor [" + armor.getEDID() + "]");
             }
-            else if (armor.getWeight() == 0.0) {
-                SPGlobal.log("ARMO", "Ignoring weightless armor [" + armor.getEDID() + "]");
-            }
             else {
-                armorProcessor.processRecord(new EnchantableArmor(armor), false);
+                processor.processRecord(new EnchantableArmor(armor));
             }
         }
         
-        patch.setAuthor(authorName);
-        patch.setDescription(descriptionToShowInSUM);
-    }
-
-    class EnchantableWeapon implements EnchantableObject {
-        private final WEAP weapon;
-        
-        EnchantableWeapon(WEAP weapon) {
-            this.weapon = weapon;
-        }
-        
-        @Override
-        public MajorRecord get() {
-            return weapon;
-        }
-        @Override
-        public FormID getFormID() {
-            return weapon.getForm();
-        }
-        @Override
-        public String getEditorID() {
-            return weapon.getEDID();
-        }
-        @Override
-        public String getDescription() {
-            return weapon.getDescription();
-        }
-        @Override
-        public void setDescription(String description) {
-            weapon.setDescription(description);
-        }
-        @Override
-        public KeywordSet getKeywords() {
-            return weapon.getKeywordSet();
-        }
-        @Override
-        public FormID getEnchantment() {
-            return weapon.getEnchantment();
-        }
-        @Override
-        public void setEnchantment(FormID enchantment) {
-            weapon.setEnchantment(enchantment);
-        }
-        @Override
-        public FormID getTemplate() {
-            return weapon.getTemplate();
-        }
-        @Override
-        public EnchantableObject copy() throws RecordNotFoundException {
-            WEAP newWeapon = RecordHandler.inst().getCopyWithPrefix(weapon.getForm(), "NoEnch");
-            
-            newWeapon.setEnchantment(FormID.NULL);
-            newWeapon.setEnchantmentCharge(0);
-            newWeapon.setDescription("");
-            newWeapon.getKeywordSet().removeKeywordRef(RecordHandler.inst().getFormID("MagicDisallowEnchanting"));
-            
-            return new EnchantableWeapon(newWeapon);
-        }
-    }
-    
-    class EnchantableArmor implements EnchantableObject {
-        
-        private final ARMO armor;
-        
-        EnchantableArmor(ARMO armor) {
-            this.armor = armor;
-        }
-        
-        @Override
-        public MajorRecord get() {
-            return armor;
-        }
-        @Override
-        public FormID getFormID() {
-            return armor.getForm();
-        }
-        @Override
-        public String getEditorID() {
-            return armor.getEDID();
-        }
-        @Override
-        public String getDescription() {
-            return armor.getDescription();
-        }
-        @Override
-        public void setDescription(String description) {
-            armor.setDescription(description);
-        }
-        @Override
-        public KeywordSet getKeywords() {
-            return armor.getKeywordSet();
-        }
-        @Override
-        public FormID getEnchantment() {
-            return armor.getEnchantment();
-        }
-        @Override
-        public void setEnchantment(FormID enchantment) {
-            armor.setEnchantment(enchantment);
-        }
-        @Override
-        public FormID getTemplate() {
-            return armor.getTemplate();
-        }
-        @Override
-        public EnchantableObject copy() throws RecordNotFoundException {
-            ARMO newArmor = RecordHandler.inst().getCopyWithPrefix(armor.getForm(), "NoEnch");
-            
-            newArmor.setEnchantment(FormID.NULL);
-            newArmor.setDescription("");
-            newArmor.getKeywordSet().removeKeywordRef(RecordHandler.inst().getFormID("MagicDisallowEnchanting"));
-            
-            return new EnchantableArmor(newArmor);
+        ArrayList<FormID> temperKeywords = new ArrayList<>();
+        temperKeywords.add(new FormID("088108", "Skyrim.esm"));
+        temperKeywords.add(new FormID("0ADB78", "Skyrim.esm"));
+        for (COBJ cobj : RecordHandler.inst().getDB().getConstructibleObjects()) {
+            if (temperKeywords.contains(cobj.getBenchKeywordFormID()) && processor.getRecordDuplicate(cobj.getResultFormID()) != null) {
+                RecordHandler.inst().<COBJ>getCopyWithSuffix(cobj.getForm(), "NoEnch").setResultFormID(processor.getRecordDuplicate(cobj.getResultFormID()));
+            }
         }
     }
 }

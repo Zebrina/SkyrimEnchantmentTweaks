@@ -12,7 +12,7 @@ import skyproc.MajorRecord;
  *
  * @author Sabrina
  */
-public class RecordNotFoundException extends Exception {
+public class RecordNotFoundException extends RecordException {
     private final static String DEFAULT_MESSAGE = "Record not found!";
     
     public RecordNotFoundException(String message, FormID formID) {

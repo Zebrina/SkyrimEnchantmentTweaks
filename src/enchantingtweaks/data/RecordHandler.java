@@ -6,11 +6,14 @@
 package enchantingtweaks.data;
 
 import enchantingtweaks.exceptions.RecordCopyFailureException;
+import enchantingtweaks.exceptions.RecordInvalidException;
 import enchantingtweaks.exceptions.RecordNotFoundException;
 import java.util.HashMap;
+import skyproc.ENCH;
 import skyproc.FormID;
 import skyproc.MajorRecord;
 import skyproc.Mod;
+import skyproc.SPGlobal;
 
 /**
  *
@@ -28,79 +31,150 @@ public class RecordHandler {
     
     private Mod merger = null;
     private Mod patch = null;
-    private final HashMap<String, MajorRecord> editorIDCache = new HashMap<>();
-    private final HashMap<FormID, MajorRecord> formIDCache = new HashMap<>();
+    private final HashMap<Object, MajorRecord> recordCache = new HashMap<>();
+    //private final HashMap<String, MajorRecord> copiedCache = new HashMap<>();
 
-    public void initialize(Mod merger, Mod patch) {
-        this.merger = merger;
-        this.patch = patch;
+    private RecordHandler() {
+        patch = SPGlobal.getGlobalPatch();
+	merger = new Mod("RecordHandlerDB", false);
+	merger.addAsOverrides(SPGlobal.getDB());
     }
     
-    private void pushRecord(String editorID, FormID formID, MajorRecord record) {
-        editorIDCache.put(editorID, record);
-        formIDCache.put(formID, record);
+    private void saveRecord(MajorRecord record) {
+        recordCache.put(record.getEDID(), record);
+        recordCache.put(record.getForm(), record);
+        //SPGlobal.log("saveRecord", "Pushed [" + record.getEDID() + " :  XX" + record.getForm().getFormStr().substring(0, 6) + " in " + record.getForm().getFormStr().substring(6) + "]");
     }
     
-    public <T extends MajorRecord> T get(String editorID) throws RecordNotFoundException {
-        T result = (T)editorIDCache.get(editorID);
+    private <T extends MajorRecord> T getMajor(Object key) throws Exception {
+        MajorRecord result = recordCache.get(key);
         if (result == null) {
-            MajorRecord m = merger.getMajor(editorID);
-            if (m == null) {
-                throw new RecordNotFoundException(editorID);
+            if (key instanceof String) {
+                result = merger.getMajor((String)key);
+            }
+            else if (key instanceof FormID) {
+                result = merger.getMajor((FormID)key);
             }
             else {
-                pushRecord(editorID, m.getForm(), m);
-                result = (T)m;
+                throw new Exception("Invalid key type passed to getMajor(" + key.getClass().toString() + " key)");
             }
+
+            if (result == null) {
+                throw key instanceof String ? new RecordNotFoundException((String)key) : new RecordNotFoundException((FormID)key);
+            }
+            
+            saveRecord(result);
         }
-        return result;
-    }
-    public <T extends MajorRecord> T get(FormID formID) throws RecordNotFoundException {
-        T result = (T)formIDCache.get(formID);
-        if (result == null) {
-            MajorRecord m = merger.getMajor(formID);
-            if (m == null) {
-                throw new RecordNotFoundException(formID);
-            }
-            else {
-                pushRecord(m.getEDID(), formID, m);
-                result = (T)m;
-            }
+        
+        if ((T)result == null) {
+            throw new RecordInvalidException("Record found but is of wrong type (type is " + result.getClass().toString() + ")", result);
         }
-        return result;
+        
+        return (T)result;
     }
-    public FormID getFormID(String editorID) throws RecordNotFoundException {
-        MajorRecord t = get(editorID);
-        return t == null ? FormID.NULL : t.getForm();
+        
+    public boolean isValid(Object key) {
+        boolean isValid;
+        try {
+            isValid = getMajor(key) != null;
+        }
+        catch (Exception ex) {
+            SPGlobal.log("RecordHandler", "Record was not valid -> " + ex.getMessage());
+            isValid = false;
+        }
+        return isValid;
     }
     
-    public <T extends MajorRecord> T getCopy(String editorID, String prefix, String suffix) throws RecordNotFoundException {
-        return (T)patch.makeCopy(get(editorID), prefix + editorID + suffix);
+    public <T extends MajorRecord> T getRecord(Object key) throws Exception {
+        return getMajor(key);
     }
-    public <T extends MajorRecord> T getCopy(String editorID) throws RecordNotFoundException {
-        return getCopy(editorID, "CopyOf", "");
-    }
-    public <T extends MajorRecord> T getCopyWithPrefix(String editorID, String prefix) throws RecordNotFoundException {
-        return getCopy(editorID, prefix, "");
-    }
-    public <T extends MajorRecord> T getCopyWithSuffix(String editorID, String suffix) throws RecordNotFoundException {
-        return getCopy(editorID, "", suffix);
-    }
-    public <T extends MajorRecord> T getCopy(FormID formID, String prefix, String suffix) throws RecordNotFoundException, RecordCopyFailureException {
-        T orig = get(formID);
-        T copy = (T)patch.makeCopy(orig, prefix + orig.getEDID() + suffix);
+        
+    private <T extends MajorRecord> T getCopy(Object key, String newEditorID) throws Exception {
+        T copy = (T)recordCache.get(newEditorID);
         if (copy == null) {
-            throw new RecordCopyFailureException(orig);
+            copy = (T)getRecord(key).copy(newEditorID);
+            if (copy == null) {
+                throw new RecordCopyFailureException(getRecord(key));
+            }
+            else {
+                saveRecord(copy);
+                
+                if (copy instanceof ENCH) {
+                }
+            }
         }
         return copy;
     }
-    public <T extends MajorRecord> T getCopy(FormID formID) throws RecordNotFoundException, RecordCopyFailureException {
-        return getCopy(formID, "CopyOf", "");
+    
+    public <T extends MajorRecord> T get(String editorID) throws Exception {
+        if (editorID.isEmpty()) {
+            throw new Exception("Empty editor id passed");
+        }
+        return getRecord(editorID);
     }
-    public <T extends MajorRecord> T getCopyWithPrefix(FormID formID, String prefix) throws RecordNotFoundException, RecordCopyFailureException {
-        return getCopy(formID, prefix, "");
+    public <T extends MajorRecord> T get(FormID formID) throws Exception {
+        return getRecord(formID);
     }
-    public <T extends MajorRecord> T getCopyWithSuffix(FormID formID, String suffix) throws RecordNotFoundException, RecordCopyFailureException {
-        return getCopy(formID, "", suffix);
+    
+    public String getEditorID(FormID formID) throws Exception {
+        return getRecord(formID).getEDID();
+    }
+    public FormID getFormID(String editorID) throws Exception {
+        return getRecord(editorID).getForm();
+    }
+    
+    public <T extends MajorRecord> T getCopy(String editorID, String newEditorID) throws Exception {
+        return getCopy((Object)editorID, newEditorID);
+    }
+    public <T extends MajorRecord> T getCopyWithPrefix(String editorID, String prefix) throws Exception {
+        return getCopy((Object)editorID, prefix + editorID);
+    }
+    public <T extends MajorRecord> T getCopyWithSuffix(String editorID, String suffix) throws Exception {
+        return getCopy((Object)editorID, editorID + suffix);
+    }
+    public <T extends MajorRecord> T getCopy(String editorID, String prefix, String suffix) throws Exception {
+        return getCopy((Object)editorID, prefix + editorID + suffix);
+    }
+    public <T extends MajorRecord> T getCopy(FormID formID, String newEditorID) throws Exception {
+        return getCopy((Object)formID, newEditorID);
+    }
+    public <T extends MajorRecord> T getCopy(FormID formID) throws Exception {
+        return getCopy((Object)formID, "CopyOf" + getEditorID(formID));
+    }
+    public <T extends MajorRecord> T getCopyWithPrefix(FormID formID, String prefix) throws Exception {
+        return getCopy((Object)formID, prefix + getEditorID(formID));
+    }
+    public <T extends MajorRecord> T getCopyWithSuffix(FormID formID, String suffix) throws Exception {
+        return getCopy((Object)formID, getEditorID(formID) + suffix);
+    }
+    public <T extends MajorRecord> T getCopy(FormID formID, String prefix, String suffix) throws Exception {
+        return getCopy((Object)formID, prefix + getEditorID(formID) + suffix);
+    }
+    
+    public <T extends MajorRecord> boolean isValid(String editorID) {
+        return isValid((Object)editorID);
+    }
+    public <T extends MajorRecord> boolean isValid(FormID formID) {
+        return isValid((Object)formID);
+    }
+    public <T extends MajorRecord> boolean isNull(String editorID) {
+        return !isValid((Object)editorID);
+    }
+    public <T extends MajorRecord> boolean isNull(FormID formID) {
+        return !isValid((Object)formID);
+    }
+    
+    public Mod getDB() {
+        return merger;
+    }
+    
+    public void addToPatch(String editorID) throws Exception {
+        patch.addRecord(get(editorID));
+    }
+    public void addToPatch(FormID formID) throws Exception {
+        patch.addRecord(get(formID));
+    }
+    public void addToPatch(MajorRecord record) {
+        patch.addRecord(record);
     }
 }
