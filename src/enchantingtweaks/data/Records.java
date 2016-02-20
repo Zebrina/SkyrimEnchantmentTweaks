@@ -202,15 +202,6 @@ public class Records {
         }
         return copy;
     }
-    public <T extends MajorRecord> T getCopyWithPrefix(Object key, String prefix) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException, RecordCopyFailureException {
-        return getCopy(key, prefix + getEditorID(key));
-    }
-    public <T extends MajorRecord> T getCopyWithSuffix(Object key, String suffix) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException, RecordCopyFailureException {
-        return getCopy(key, getEditorID(key) + suffix);
-    }
-    public <T extends MajorRecord> T getCopy(Object key, String prefix, String suffix) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException, RecordCopyFailureException {
-        return getCopy(key, prefix + getEditorID(key) + suffix);
-    }
     
     public Mod getMergedMod() {
         return mergedMod;

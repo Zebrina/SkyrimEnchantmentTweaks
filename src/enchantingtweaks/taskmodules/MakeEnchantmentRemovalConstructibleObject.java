@@ -19,6 +19,7 @@ import skyproc.FormID;
 import skyproc.MajorRecord;
 import skyproc.NPC_;
 import skyproc.RACE;
+import skyproc.SPGlobal;
 import skyproc.WEAP;
 
 /**
@@ -34,7 +35,7 @@ public class MakeEnchantmentRemovalConstructibleObject {
     
     // Sub modules.
     EnforceUniqueEnchantmentRestriction uniqueEnchantmentRestrictionEnforcer;
-    ResolveUniqueEnchantedRecordDescription uniqueEnchantmentDescriptionResolver = new ResolveUniqueEnchantedRecordDescription();
+    ResolveUniqueEnchantedRecordDescription uniqueEnchantmentDescriptionResolver;
     
     public MakeEnchantmentRemovalConstructibleObject() {
         skins = new HashSet<>();
@@ -51,11 +52,12 @@ public class MakeEnchantmentRemovalConstructibleObject {
         }
         
         uniqueEnchantmentRestrictionEnforcer = Settings.EnforceUniqueEnchantmentRestrictions ? new EnforceUniqueEnchantmentRestriction() : null;
+        uniqueEnchantmentDescriptionResolver = new ResolveUniqueEnchantedRecordDescription();
     }
     
     private boolean isPlayable(MajorRecord record) {
         return !record.get(MajorRecord.MajorFlags.NonPlayable) &&
-                !(record instanceof WEAP ? ((WEAP)record).get(WEAP.WeaponFlag.NonPlayable) : ((ARMO)record).getBodyTemplate().get(BodyTemplate.GeneralFlags.NonPlayable));
+            !(record instanceof WEAP ? ((WEAP)record).get(WEAP.WeaponFlag.NonPlayable) : ((ARMO)record).getBodyTemplate().get(BodyTemplate.GeneralFlags.NonPlayable));
     }
     private boolean isSkin(FormID armor) {
         return skins.contains(armor);
@@ -69,7 +71,7 @@ public class MakeEnchantmentRemovalConstructibleObject {
     }
     
     private MajorRecord createUnenchantedCopy(MajorRecord record) throws Exception {
-        MajorRecord recordCopy = Records.db().getCopyWithSuffix(record.getForm(), "NoEnch");
+        MajorRecord recordCopy = Records.db().getCopy(record.getForm(), record.getEDID() + "NoEnch");
         
         if (recordCopy instanceof WEAP) {
             WEAP weaponRecord = (WEAP)recordCopy;
@@ -115,7 +117,7 @@ public class MakeEnchantmentRemovalConstructibleObject {
             }
 
             // Make sure item is playable and not a skin armor.
-            if (isPlayable(record) && (record instanceof ARMO && !isSkin(record.getForm()))) {
+            if (isPlayable(record) && (record instanceof WEAP || !isSkin(record.getForm()))) {
                 ENCH enchantmentRecord = getEnchantment(record);
                 MajorRecord templateRecord = getTemplate(record);
 
@@ -135,6 +137,8 @@ public class MakeEnchantmentRemovalConstructibleObject {
                         // Item has unique enchantment.
                         // Create new unenchanted copy.
                         MajorRecord unenchantedRecord = createUnenchantedCopy(record);
+                        
+                        SPGlobal.log("ENCHANTABLE", "Created '" + unenchantedRecord.getEDID() + "'.");
 
                         createRemoveEnchantmentConstructibleObject(record, unenchantedRecord);
 

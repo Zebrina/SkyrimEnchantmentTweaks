@@ -231,7 +231,6 @@ public class SkyProcStarter implements SUM {
         
         ResolveScriptedRecord scriptResolver = new ResolveScriptedRecord();
         
-        
         // -----------------------------------------------------------
         
         MakeEnchantmentRemovalConstructibleObject enchantmentRemovalEnabler = new MakeEnchantmentRemovalConstructibleObject();

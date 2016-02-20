@@ -77,7 +77,7 @@ public class ResolveUniqueEnchantedRecordDescription {
 
                         MGEF magicEffectRecord = Records.db().get(ref.getMagicRef());
                         if (!magicEffectRecord.get(MGEF.SpellEffectFlag.HideInUI)) {
-                            magicEffectRecord = Records.db().getCopyWithSuffix(magicEffectRecord.getForm(), "Hidden");
+                            magicEffectRecord = Records.db().getCopy(magicEffectRecord.getForm(), magicEffectRecord.getEDID() + "Hidden");
                             magicEffectRecord.set(MGEF.SpellEffectFlag.HideInUI, true);
                             magicEffectRecord.set(MGEF.SpellEffectFlag.PowerAffectsMagnitude, false);
                             magicEffectRecord.set(MGEF.SpellEffectFlag.PowerAffectsDuration, false);

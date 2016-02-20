@@ -29,7 +29,7 @@ public class MakeUnenchantedTemperingConstructibleObject {
     
     public void process(COBJ cobj, FormID unenchanted) throws Exception {
         if (cobj != null && unenchanted != null && workBenchKeywords.contains(cobj.getBenchKeywordFormID())) {
-            COBJ cobjCopy = Records.db().getCopyWithSuffix(cobj.getForm(), "NoEnch");
+            COBJ cobjCopy = Records.db().getCopy(cobj.getForm(), cobj.getEDID() + "NoEnch");
             cobjCopy.setResultFormID(unenchanted);
         }
     }
