@@ -1,6 +1,6 @@
 package enchantingtweaks;
 
-import enchantingtweaks.data.RecordHandler;
+import enchantingtweaks.data.Records;
 import java.awt.Color;
 import java.awt.Font;
 import java.net.URL;
@@ -13,6 +13,7 @@ import skyproc.gui.SPMainMenuPanel;
 import skyproc.gui.SUM;
 import skyproc.gui.SUMGUI;
 import enchantingtweaks.YourSaveFile.Settings;
+import enchantingtweaks.taskmodules.*;
 
 /**
  *
@@ -35,14 +36,17 @@ public class SkyProcStarter implements SUM {
         GRUP_TYPE.COBJ,
 	GRUP_TYPE.ENCH,
         GRUP_TYPE.FLST,
-        GRUP_TYPE.KYWD,
+        GRUP_TYPE.GLOB,
 	GRUP_TYPE.MGEF,
+        GRUP_TYPE.NPC_,
+        GRUP_TYPE.PERK,
+        GRUP_TYPE.RACE,
 	GRUP_TYPE.WEAP,
     };
     public static String myPatchName = "EnchantingTweaks";
     public static String myPatchModName = "EnchantingTweaks-EnchantmentRemoval";
     public static String authorName = "Zebrina";
-    public static String version = "0.5";
+    public static String version = "1.0";
     public static String welcomeText = "Pick a setting, any setting.";
     public static String descriptionToShowInSUM = "Required by EnchantingTweaks for enchantment removal.";
     public static Color headerColor = new Color(0x9F81F7);  // Purple
@@ -93,8 +97,9 @@ public class SkyProcStarter implements SUM {
     // multiply the same record type to yeild a huge number of records.
     @Override
     public GRUP_TYPE[] dangerousRecordReport() {
-	// None
-	return new GRUP_TYPE[0];
+	return new GRUP_TYPE[] {
+            GRUP_TYPE.COBJ,
+        };
     }
 
     @Override
@@ -184,7 +189,7 @@ public class SkyProcStarter implements SUM {
     // added or removed.
     @Override
     public boolean needsPatching() {
-	return false;
+	return true;
     }
 
     // This function runs when the program opens to "set things up"
@@ -216,39 +221,47 @@ public class SkyProcStarter implements SUM {
     // but DO NOT export it.  Exporting is handled internally.
     @Override
     public void runChangesToPatch() throws Exception {
-        EnchantableObjectProcessor processor = new EnchantableObjectProcessor();
+        NPC_ player = Records.db().get("Player");
         
-        for (WEAP weapon : RecordHandler.inst().getDB().getWeapons()) {
-            if (weapon.get(MajorRecord.MajorFlags.NonPlayable) || weapon.get(WEAP.WeaponFlag.NonPlayable)) {
-                SPGlobal.log("WEAP", "Ignoring non-playable weapon [" + weapon.getEDID() + "]");
-            }
-            else if (weapon.getEnchantment().isNull()) {
-                SPGlobal.log("WEAP", "Ignoring unenchanted weapon [" + weapon.getEDID() + "]");
-            }
-            else {
-                processor.processRecord(new EnchantableWeapon(weapon));
-            }
+        player.addPerk(new FormID("01C2D5", "EnchantingTweaks.esp"), 1);
+        
+        Records.db().addRecordToPatch(player);
+        
+        // Manual fixes for some scripts which add perks and abilities
+        
+        ResolveScriptedRecord scriptResolver = new ResolveScriptedRecord();
+        
+        
+        // -----------------------------------------------------------
+        
+        MakeEnchantmentRemovalConstructibleObject enchantmentRemovalEnabler = new MakeEnchantmentRemovalConstructibleObject();
+        for (WEAP weapon : Records.db().getMergedMod().getWeapons()) {
+            enchantmentRemovalEnabler.process(weapon);
         }
-
-        for (ARMO armor : RecordHandler.inst().getDB().getArmors()) {
-            if (armor.get(MajorRecord.MajorFlags.NonPlayable) || armor.getBodyTemplate().get(BodyTemplate.GeneralFlags.NonPlayable)) {
-                SPGlobal.log("ARMO", "Ignoring non-playable armor [" + armor.getEDID() + "]");
-            }
-            else if (armor.getEnchantment().isNull()) {
-                SPGlobal.log("ARMO", "Ignoring unenchanted armor [" + armor.getEDID() + "]");
-            }
-            else {
-                processor.processRecord(new EnchantableArmor(armor));
-            }
+        for (ARMO armor : Records.db().getMergedMod().getArmors()) {
+            enchantmentRemovalEnabler.process(armor);
         }
         
-        ArrayList<FormID> temperKeywords = new ArrayList<>();
-        temperKeywords.add(new FormID("088108", "Skyrim.esm"));
-        temperKeywords.add(new FormID("0ADB78", "Skyrim.esm"));
-        for (COBJ cobj : RecordHandler.inst().getDB().getConstructibleObjects()) {
-            if (temperKeywords.contains(cobj.getBenchKeywordFormID()) && processor.getRecordDuplicate(cobj.getResultFormID()) != null) {
-                RecordHandler.inst().<COBJ>getCopyWithSuffix(cobj.getForm(), "NoEnch").setResultFormID(processor.getRecordDuplicate(cobj.getResultFormID()));
+        AttachUnenchantedRecordScript unenchantedScriptAttacher = new AttachUnenchantedRecordScript();
+        for (COBJ cobj : Records.db().getPatchMod().getConstructibleObjects()) {
+            unenchantedScriptAttacher.process(cobj);
+        }
+        
+        MakeUnenchantedTemperingConstructibleObject makeTempering = new MakeUnenchantedTemperingConstructibleObject();
+        for (COBJ cobj : Records.db().getMergedMod().getConstructibleObjects()) {
+            if (makeTempering.isConstructibleObjectTempering(cobj) && unenchantedScriptAttacher.getScriptAttachedEnchantedRecords().containsKey(cobj.getResultFormID())) {
+                makeTempering.process(cobj, unenchantedScriptAttacher.getScriptAttachedEnchantedRecords().get(cobj.getResultFormID()));
             }
         }
+        
+        // Let the master mod know this patch exists.
+        GLOB patchLoaded = Records.db().get("__EnchTw_SkyProcPatchLoaded");
+        patchLoaded.setValue(true);
+        Records.db().addRecordToPatch(patchLoaded);
+        
+        // Store the minute (since 1970) this patch was created.
+        GLOB patchDate = Records.db().get("__EnchTw_SkyProcPatchDate");
+        patchDate.setValue((float)(System.currentTimeMillis() / (60 * 1000)));
+        Records.db().addRecordToPatch(patchDate);
     }
 }
