@@ -16,6 +16,7 @@ import skyproc.Condition;
 import skyproc.ENCH;
 import skyproc.FLST;
 import skyproc.FormID;
+import skyproc.MISC;
 import skyproc.MajorRecord;
 import skyproc.NPC_;
 import skyproc.RACE;
@@ -91,6 +92,22 @@ public class MakeEnchantmentRemovalConstructibleObject {
         
         return recordCopy;
     }
+    private MajorRecord createResultDummy() {
+        return null;
+    }
+    private MISC createEnchantedToken(MajorRecord record, ENCH baseEnchantment) throws Exception {
+        if (!(record instanceof WEAP || record instanceof ARMO)) {
+            throw new IllegalArgumentException();
+        }
+        
+        MISC enchantedToken = Records.db().getCopy("__EnchTw_EnchantedTokenTemplate", (baseEnchantment == null ? record.getEDID() : baseEnchantment.getEDID()) + "EnchantedToken");
+        
+        enchantedToken.setName((baseEnchantment == null ? "Enchanted " : "") + (record instanceof WEAP ? ((WEAP)record).getName() : ((ARMO)record).getName()));
+        
+        
+        
+        return enchantedToken;
+    }
     private COBJ createRemoveEnchantmentConstructibleObject(MajorRecord fromRecord, MajorRecord toRecord) {
         COBJ cobj = new COBJ("RemoveEnch" + fromRecord.getEDID());
         
@@ -105,7 +122,7 @@ public class MakeEnchantmentRemovalConstructibleObject {
 
         cobj.setResultFormID(toRecord.getForm());
         cobj.setBenchKeywordFormID(CRAFTINGARCANEFONT);
-        cobj.setOutputQuantity(1);
+        cobj.setOutputQuantity(0); // For some reason this still creates an object but hides the item added message.
                 
         return cobj;
     }

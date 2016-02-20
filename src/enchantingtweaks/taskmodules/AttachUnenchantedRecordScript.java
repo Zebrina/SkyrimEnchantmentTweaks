@@ -24,6 +24,8 @@ import skyproc.WEAP;
  * @author Sabrina
  */
 public class AttachUnenchantedRecordScript {
+    private static final String ENCHANTABLESCRIPT = "EnchTw_Enchantable"; 
+    
     // Keywords
     private final static FormID CRAFTINGARCANEFONT = new FormID("04ECF3", "EnchantingTweaks.esp");
     
@@ -41,12 +43,15 @@ public class AttachUnenchantedRecordScript {
             if ((unenchantedRecord instanceof WEAP || unenchantedRecord instanceof ARMO) && unenchantedRecord.getClass().equals(enchantedRecord.getClass())) {
                 if (Records.db().isNull(unenchantedRecord instanceof WEAP ? ((WEAP)enchantedRecord).getTemplate(): ((ARMO)enchantedRecord).getTemplate())) {
                     ScriptPackage scripts = unenchantedRecord instanceof WEAP ? ((WEAP)unenchantedRecord).getScriptPackage() : ((ARMO)unenchantedRecord).getScriptPackage();
-                    if (!scripts.hasScript("EnchTw_Enchantable")) {
-                        FormID toggleVisibilityGVar = (new GLOB(unenchantedRecord.getEDID() + "ToggleVisibility", GLOBType.Long)).getForm();
+                    if (!scripts.hasScript(ENCHANTABLESCRIPT)) {
+                        
 
-                        ScriptRef enchantableScript = new ScriptRef("EnchTw_Enchantable");
+                        ScriptRef enchantableScript = scripts.hasScript(ENCHANTABLESCRIPT) ? scripts.getScript(ENCHANTABLESCRIPT) : new ScriptRef(ENCHANTABLESCRIPT);
 
-                        if (!enchantedRecord.getForm().equals(cobj.getResultFormID())) {
+                        if (enchantedRecord.getForm().equals(cobj.getResultFormID())) {
+                            FormID toggleVisibilityGVar = (new GLOB(unenchantedRecord.getEDID() + "ToggleVisibility", GLOBType.Long)).getForm();
+                        }
+                        else {
                             enchantableScript.setProperty("BaseEnchantedObject", enchantedRecord.getForm());
 
                             scriptAttachedEnchantedRecords.put(enchantedRecord.getForm(), unenchantedRecord.getForm());
