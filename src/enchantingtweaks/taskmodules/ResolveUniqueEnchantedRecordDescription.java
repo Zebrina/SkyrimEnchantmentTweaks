@@ -6,7 +6,6 @@
 package enchantingtweaks.taskmodules;
 
 import enchantingtweaks.data.Records;
-import enchantingtweaks.exceptions.RecordInvalidException;
 import java.util.HashSet;
 import skyproc.ARMO;
 import skyproc.ENCH;
@@ -54,7 +53,7 @@ public class ResolveUniqueEnchantedRecordDescription {
     public void process(MajorRecord record, ENCH enchantmentRecord) throws Exception {
         if (record != null && enchantmentRecord != null) {
             if (!(record instanceof WEAP || record instanceof ARMO)) {
-                throw new RecordInvalidException("Wrong record type for arg record", record);
+                throw new IllegalArgumentException("record");
             }
 
             if (hasDescription(record)) {

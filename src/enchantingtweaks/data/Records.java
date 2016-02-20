@@ -5,10 +5,6 @@
  */
 package enchantingtweaks.data;
 
-import enchantingtweaks.exceptions.RecordCopyFailureException;
-import enchantingtweaks.exceptions.RecordInvalidException;
-import enchantingtweaks.exceptions.RecordNotFoundException;
-import enchantingtweaks.exceptions.RecordNullException;
 import java.util.HashMap;
 import skyproc.FormID;
 import skyproc.MajorRecord;
@@ -20,13 +16,36 @@ import skyproc.SPGlobal;
  * @author Sabrina
  */
 public class Records {
+    private class RecordNotFoundException extends Exception {
+        public RecordNotFoundException(RecordDBKey key) {
+            super("Record '" + key + "' not found");
+        }
+    }
+    private class RecordTypeMismatchException extends Exception {
+        public RecordTypeMismatchException(RecordDBKey key, MajorRecord record) {
+            super("Record '" + key + "' is of type '" + record.getClass().getName() + "'.");
+        }
+    }
+    private class RecordCopyFailureException extends Exception {
+        public RecordCopyFailureException(RecordDBKey key) {
+            super("Failed to copy record '" + key + "'");
+        }
+    }
+    
     private static class RecordDBKey {
-        private final String editorID;
-        private final FormID formID;
+        public final String editorID;
+        public final FormID formID;
         
-        public RecordDBKey(String editorID, FormID formID) {
+        public RecordDBKey(String editorID, FormID formID) throws IllegalArgumentException {
+            if (editorID == null || formID == null) {
+                throw new IllegalArgumentException();
+            }
+            
             this.editorID = editorID;
             this.formID = formID;
+        }
+        public RecordDBKey(MajorRecord record) throws NullPointerException, IllegalArgumentException {
+            this(record.getEDID(), record.getForm());
         }
         
         public static RecordDBKey byEditorID(String editorID) {
@@ -34,6 +53,22 @@ public class Records {
         }
         public static RecordDBKey byFormID(FormID formID) {
             return new RecordDBKey("", formID);
+        }
+        public static RecordDBKey byKey(Object key) throws NullPointerException, IllegalArgumentException {
+            if (key instanceof String) {
+                return byEditorID((String)key);
+            }
+            else if (key instanceof FormID) {
+                return byFormID((FormID)key);
+            }
+            throw new IllegalArgumentException("Invalid key type passed to RecordDBKey.byKey(key) (key type is " + key.getClass().getName() + ")");
+        }
+        
+        public boolean hasEditorID() {
+            return !editorID.isEmpty();
+        }
+        public boolean hasFormID() {
+            return !formID.isNull();
         }
         
         private boolean compare(RecordDBKey other) {
@@ -52,6 +87,20 @@ public class Records {
         public int hashCode() {
             return RecordDBKey.class.getName().hashCode();
         }
+        
+        @Override
+        public String toString() {
+            if (hasEditorID() && hasFormID()) {
+                return editorID + "|XX" + formID.getFormStr().substring(0, 6) + " in " + formID.getFormStr().substring(6);
+            }
+            else if (hasEditorID()) {
+                return editorID;
+            }
+            else if (hasFormID()) {
+                return "XX" + formID.getFormStr().substring(0, 6) + " in " + formID.getFormStr().substring(6);
+            }
+            return "NULL";
+        }
     }
     
     private static Records instance = null;
@@ -63,73 +112,62 @@ public class Records {
         return instance;
     }
     
-    private Mod merger = null;
-    private Mod patch = null;
-    private final HashMap<Object, MajorRecord> recordCache = new HashMap<>();
-    //private final HashMap<String, MajorRecord> copiedCache = new HashMap<>();
+    private final Mod mergedMod;
+    private final Mod patchMod;
+    
+    private final HashMap<RecordDBKey, MajorRecord> recordTable;
 
     private Records() {
-        patch = SPGlobal.getGlobalPatch();
-	merger = new Mod("RecordHandlerDB", false);
-	merger.addAsOverrides(SPGlobal.getDB());
+        patchMod = SPGlobal.getGlobalPatch();
+	mergedMod = new Mod("RecordHandlerDB", false);
+	mergedMod.addAsOverrides(SPGlobal.getDB());
+        
+        recordTable = new HashMap<>();
     }
     
     private void saveRecord(MajorRecord record) {
-        recordCache.put(record.getEDID(), record);
-        recordCache.put(record.getForm(), record);
-        //SPGlobal.log("saveRecord", "Pushed [" + record.getEDID() + " :  XX" + record.getForm().getFormStr().substring(0, 6) + " in " + record.getForm().getFormStr().substring(6) + "]");
+        recordTable.put(new RecordDBKey(record), record);
     }
     
-    private <T extends MajorRecord> T getMajor(Object key) throws Exception {
-        MajorRecord result = recordCache.get(key);
+    private <T extends MajorRecord> T getMajor(RecordDBKey key) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException {
+        if (key == null) {
+            throw new IllegalArgumentException();
+        }
+        
+        MajorRecord result = recordTable.get(key);
         if (result == null) {
-            if (key instanceof String) {
-                result = merger.getMajor((String)key);
-            }
-            else if (key instanceof FormID) {
-                result = merger.getMajor((FormID)key);
+            if (key.hasEditorID()) {
+                result = mergedMod.getMajor(key.editorID);
             }
             else {
-                throw new Exception("Invalid key type passed to getMajor (" + key.getClass().toString() + " key)");
+                result = mergedMod.getMajor(key.formID);
             }
 
             if (result == null) {
-                throw key instanceof String ? new RecordNotFoundException((String)key) : new RecordNotFoundException((FormID)key);
+                throw new RecordNotFoundException(key);
             }
             
             saveRecord(result);
         }
         
         if ((T)result == null) {
-            throw new RecordInvalidException("Record found but is of wrong type (type is " + result.getClass().toString() + ")", result);
+            throw new RecordTypeMismatchException(key, result);
         }
         
         return (T)result;
     }
         
     public boolean isValid(Object key) {
-        boolean isValid;
-        try {
-            isValid = getMajor(key) != null;
-        }
-        catch (Exception ex) {
-            /*
-            if (key instanceof FormID && !((FormID)key).isNull()) {
-                SPGlobal.log("Records.db().isValid(...)", "Record was not valid -> " + ex.getMessage());
-            }
-            */
-            isValid = false;
-        }
-        return isValid;
+        return tryGet(key) != null;
     }
     public boolean isNull(Object key) {
         return !isValid(key);
     }
     
-    public <T extends MajorRecord> T get(Object key) throws Exception {
-        return getMajor(key);
+    public <T extends MajorRecord> T get(Object key) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException {
+        return getMajor(RecordDBKey.byKey(key));
     }
-    public <T extends MajorRecord> T tryGet(Object key) throws Exception {
+    public <T extends MajorRecord> T tryGet(Object key) {
         T result;
         try {
             result = get(key);
@@ -143,19 +181,20 @@ public class Records {
         return result;
     }
         
-    public String getEditorID(Object key) throws Exception {
+    public String getEditorID(Object key) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException {
         return get(key).getEDID();
     }
-    public FormID getFormID(Object key) throws Exception {
+    public FormID getFormID(Object key) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException {
         return get(key).getForm();
     }
     
-    public <T extends MajorRecord> T getCopy(Object key, String newEditorID) throws Exception {
-        T copy = (T)recordCache.get(newEditorID);
+    public <T extends MajorRecord> T getCopy(Object key, String newEditorID) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException, RecordCopyFailureException {
+        RecordDBKey dbKey = RecordDBKey.byKey(key);
+        T copy = (T)recordTable.get(dbKey);
         if (copy == null) {
             copy = (T)get(key).copy(newEditorID);
             if (copy == null) {
-                throw new RecordCopyFailureException(get(key));
+                throw new RecordCopyFailureException(dbKey);
             }
             else {
                 saveRecord(copy);
@@ -163,33 +202,27 @@ public class Records {
         }
         return copy;
     }
-    public <T extends MajorRecord> T getCopyWithPrefix(Object key, String prefix) throws Exception {
+    public <T extends MajorRecord> T getCopyWithPrefix(Object key, String prefix) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException, RecordCopyFailureException {
         return getCopy(key, prefix + getEditorID(key));
     }
-    public <T extends MajorRecord> T getCopyWithSuffix(Object key, String suffix) throws Exception {
+    public <T extends MajorRecord> T getCopyWithSuffix(Object key, String suffix) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException, RecordCopyFailureException {
         return getCopy(key, getEditorID(key) + suffix);
     }
-    public <T extends MajorRecord> T getCopy(Object key, String prefix, String suffix) throws Exception {
+    public <T extends MajorRecord> T getCopy(Object key, String prefix, String suffix) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException, RecordCopyFailureException {
         return getCopy(key, prefix + getEditorID(key) + suffix);
     }
     
     public Mod getMergedMod() {
-        return merger;
+        return mergedMod;
     }
     public Mod getPatchMod() {
-        return patch;
+        return patchMod;
     }
     
-    public void addRecordToPatch(Object key) throws Exception {
-        if (key instanceof FormID && ((FormID)key).isNull()) {
-            throw new RecordNullException();
-        }
-        patch.addRecord(get(key));
+    public void addRecordToPatch(Object key) throws IllegalArgumentException, RecordNotFoundException, RecordTypeMismatchException {
+        patchMod.addRecord(get(RecordDBKey.byKey(key)));
     }
-    public void addRecordToPatch(MajorRecord record) throws RecordNullException {
-        if (record == null) {
-            throw new RecordNullException();
-        }
-        patch.addRecord(record);
+    public void addRecordToPatch(MajorRecord record) {
+        patchMod.addRecord(record);
     }
 }

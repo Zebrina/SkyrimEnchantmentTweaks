@@ -8,7 +8,6 @@ package enchantingtweaks.taskmodules;
 import enchantingtweaks.data.Records;
 import enchantingtweaks.data.Settings;
 import enchantingtweaks.data.SoulGems;
-import enchantingtweaks.exceptions.RecordInvalidException;
 import java.util.HashSet;
 import skyproc.ARMO;
 import skyproc.BodyTemplate;
@@ -112,7 +111,7 @@ public class MakeEnchantmentRemovalConstructibleObject {
     public void process(MajorRecord record) throws Exception {
         if (record != null) {
             if (!(record instanceof WEAP || record instanceof ARMO)) {
-                throw new RecordInvalidException("Wrong record type for arg record", record);
+                throw new IllegalArgumentException("record");
             }
 
             // Make sure item is playable and not a skin armor.

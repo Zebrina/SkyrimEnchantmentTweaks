@@ -6,7 +6,6 @@
 package enchantingtweaks.taskmodules;
 
 import enchantingtweaks.data.Records;
-import enchantingtweaks.exceptions.RecordInvalidException;
 import java.util.HashMap;
 import skyproc.ARMO;
 import skyproc.ENCH;
@@ -26,7 +25,7 @@ public class EnforceUniqueEnchantmentRestriction {
     public void process(MajorRecord unenchantedRecord, ENCH enchantmentRecord) throws Exception {
         if (unenchantedRecord != null && enchantmentRecord != null) {
             if (!(unenchantedRecord instanceof WEAP || unenchantedRecord instanceof ARMO)) {
-                throw new RecordInvalidException("Wrong record type for arg unenchantedRecord", unenchantedRecord);
+                throw new IllegalArgumentException("unenchantedRecord");
             }
 
             FormID kw = restrictedEnchantments.get(enchantmentRecord.getForm());

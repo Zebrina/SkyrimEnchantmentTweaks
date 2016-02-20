@@ -5,7 +5,6 @@
  */
 package enchantingtweaks.taskmodules;
 
-import enchantingtweaks.exceptions.RecordInvalidException;
 import skyproc.ARMO;
 import skyproc.MajorRecord;
 import skyproc.ScriptPackage;
@@ -19,7 +18,7 @@ public class ResolveScriptedRecord {
     public void process(MajorRecord record, String scriptToRemove, String scriptToAdd) throws Exception {
         if (record != null && scriptToAdd != null && !scriptToAdd.isEmpty()) {
             if (!(record instanceof WEAP || record instanceof ARMO)) {
-                throw new RecordInvalidException("Wrong record type for arg record", record);
+                throw new IllegalArgumentException("record");
             }
             
             ScriptPackage scripts = record instanceof WEAP ? ((WEAP)record).getScriptPackage() : ((ARMO)record).getScriptPackage();
